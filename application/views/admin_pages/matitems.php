@@ -1,0 +1,536 @@
+<?php $this->load->view('admin_layout/header');?>
+<?php 
+$pageName = "itemqty";
+$calledName = "ItemsStock";
+$heading = "Material Order - MO";
+$key = "id";
+$tableName = "e_items";
+$fields = array('MO #','Department','Section','Project','Status');//,'Parent Category'
+$indexes  = array('id','department_id','section_id','project_id','approved_status');//,'parentid'
+
+$bom = $bom[0];
+ ?>
+
+<div class="page-content-wrapper">
+  <div class="page-content">
+    <div class="page-bar">
+      <div class="page-title-breadcrumb">
+        <div class=" pull-left">
+          <div class="page-title">
+            <?=ucfirst($heading)?>
+          </div>
+        </div>
+        <ol class="breadcrumb page-breadcrumb pull-right">
+          <li><i class="fa fa-home"></i>&nbsp;<a class="parent-item" href="<?=base_url()?>">Home</a>&nbsp; </li>
+        </ol>
+      </div>
+    </div>
+    <!-- ====================Form Controls ===================== -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card card-topline-aqua">
+          <div class="card-head">  
+          <div class="tools col-md-1">
+          	<button  style="display:none" type="button" id="btn_popup" value="ppp"></button>
+            <?php if($this->session->role=='level1') :?>
+            <button type="button" class="btn btn-xs btn-success" onclick="submitBom(<?=$bom['id']?>,'Submitted')" >Submit for<br />Approval</button>&nbsp;
+            <?php else :?>
+            <button type="button" class="btn btn-xs btn-success" onclick="submitBom(<?=$bom['id']?>,'Approved')" > Approved </button><br /><br />
+            <button type="button" class="btn btn-xs btn-info" onclick="submitBom(<?=$bom['id']?>,'Draft')" >Sendback</button>
+            <?php endif?>
+          </div>
+      
+          <div class="tools col-md-2" <?php if($bom['bomid']==0) echo 'style="display:none"'; else echo 'title="BOM-No:'.$bom['bomid'].'"'; ?>>
+          Multiply Factor:<br>
+		  <input type="number" class="form-control" min="1" id="mpf" name="mpf" value="1">
+          <button type="button" class="btn btn-xs btn-danger" onclick="applyMPF(<?=$bom['id']?>)" >Apply</button>
+          </div>
+                    
+          <div class="tools col-md-5">
+           <strong>DEPT / SEC :</strong> <?=getField('e_departments',array('id'=>$bom['department_id']),'title')?> / <?=getField('e_departments',array('id'=>$bom['section_id']),'title')?> <br />
+          <strong>PROJECT :</strong> <?=getField('e_projects',array('id'=>$bom['project_id']),'title')?>
+          </div>
+          <div class="col-md-3">
+          <b>MO No : <?=$bom['id']?></b><br>
+              [ <strong><?=getField('e_admin',array('userid'=>$bom['generated_by']),'name');?></strong> ]
+          </div>  
+		  
+		  <style>#saveXStage tr th {padding:0px; text-align:center; height:20px}</style>    
+      <form name="myForm" id="myForm" method="post" enctype="multipart/form-data"  onsubmit="return form_validation()">
+              <input type="hidden" value="<?=$_SESSION['userid']?>" id="userid" name="userid">
+              <input type="hidden" value="e_matitem" id="tableName" name="tableName">
+              <input type="hidden" value="id" id="keyIndex" name="keyIndex">
+              <input type="hidden" value="0" id="id" name="id">
+              <input type="hidden" value="add" id="action" name="action">
+              <input type="hidden" class="form-control" name="mat_id" id="mat_id" value="<?=$bom['id']?>" required >
+              <input type="hidden" class="form-control" name="project_id" id="project_id" value="<?=$bom['project_id']?>" required >
+            <table id="saveXStage" class="table table-bordered display full-width" >
+                <tr><th width="15%">Assembly</th>
+                <th width="15%">Sub Assembly</th>
+                <th width="15%">MIS No</th>
+                <th width="15%">Item </th>
+                <th width="10%">Qty Demanded</th>
+                <!--<th width="10%">Qty Issued/Alloc</th>-->
+                <th width="20%">Item Notes</th>
+                <th width="10%">&nbsp;
+                <a href="<?=base_url()?>Home/items" target="_blank"><button type="button" class="btn btn-xs btn-info" >Add Item</button></a>
+                </th></tr>
+                <tr>
+                <td><select class="form-control" name="assembly_id" id="assembly_id" onChange="getsingleFieldAjax('sub_assembly_id','parentassembly',this.value,'e_assemblies')" required >
+                    <?php if(isset($this->session->assembly_id)&& $this->session->assembly_id>0 ):?>
+                      <option value="<?=$this->session->assembly_id?>"><?=getField('e_assemblies',array('id'=>$this->session->assembly_id),'title')?></option>
+                      <?php else : ?>
+                      <option value="0">-</option>
+                      <?php endif ?>
+                      
+                    <?= getOption('e_assemblies','id','title',@$bomi['assembly_id'],array('projectid'=>$bom['project_id'], 'parentassembly'=>0))?>
+                    </select>
+            	</td>
+                <td>
+                    <select class="form-control" name="sub_assembly_id" id="sub_assembly_id" required >
+                     <?php if(isset($this->session->sub_assembly_id)&& $this->session->sub_assembly_id>0 ):?>
+                      <option value="<?=$this->session->sub_assembly_id?>"><?=getField('e_assemblies',array('id'=>$this->session->sub_assembly_id),'title')?></option>
+                      <?php else : ?>
+                      <option value="0">-</option>
+                      <?php endif ?>
+                      
+                  <?=getOption('e_assemblies','id','title',@$bomi['sub_assembly_id'],array('projectid'=>$bom['project_id'], 'parentassembly>'=>0))?>
+                    </select>
+            	</td>
+                <td>
+                <input type="text" class="form-control" name="item_id" id="item_id" value=""  required readonly >
+                </td>
+                <td>
+                <span  class="form-control" name="itm_display" id="itm_display" onclick="searchSelectItem()">Select Item</span>
+                </td>
+                <td><input type="number" class="form-control" name="qty_needed" id="qty_needed" required ></td>
+                <td><input type="text" class="form-control" name="item_notes" id="item_notes"  ></td>
+                <td><input type="submit" class="btn btn-md btn-warning" value="Save" /> </td>
+                </tr>
+          </table>
+     	  </form>
+       </div>
+          <div id="ixd" onclick="clearToolTip(0)" style="position:absolute;top:0px;z-index:9999; background-color:#FFC; padding:5px; border:1px solid #222; display:none"></div>
+          <div class="card-bodyx " style="overflow-y: auto; min-height:320px; max-height:320px">
+         
+          <table class="table table-bordered display full-width" >
+          <?php 
+		  if($bomi){
+			  foreach($bomi as $bi){ extract($bi);?>
+                <tr id="row<?=$id?>">
+                <td width="15%"><?=getField('e_assemblies',array("id"=>$assembly_id),'title');?></td>
+                <td width="15%"><?=getField('e_assemblies',array("id"=>$sub_assembly_id),'title');?></td>
+                <td width="15%"><?=$item_id?></td>
+                <td width="15%"><span onclick="idetailsToolTip(<?=$item_id?>)"><?=$item_id.'-'.getField('e_items',array("id"=>$item_id),'item_name');?></span> </td>
+                <td width="10%"><?=$qty_needed?></td>
+                <td width="20%"><?=$item_notes?></td>
+                <td>
+                <button class="btn btn-primary btn-xs" onclick="updateitem(<?=$id?>,'e_matitem',<?=$item_id?>)" >
+                <i class="fa fa-pencil"></i></button>     
+                <!--<button class="btn btn-danger btn-xs" onclick="deletBomItem('id',<?=$id?>,'e_bomitem')">
+                <i class="fa fa-trash-o "></i></button> -->
+                <?php if($this->session->role!='level1' || $bom['approved_status']!='Approved') :?>
+                  <button class="btn btn-danger btn-xs" onclick="deletBomItem('id',<?=$id?>,'e_matitem')"> <i class="fa fa-trash-o "></i></button>
+                  <?php endif?>
+                 
+                </td></tr>                              
+          <?php }
+		  }
+		  ?>
+          </table>
+          </div>
+          </div> 
+        </div>
+      </div>
+    </div>
+    
+  <div class="row" id="popup" style="display:none; position:absolute;top:0px;z-index:9999; width:83%">
+      <div class="col-md-12 col-sm-12">
+        <div class="card card-box">
+          <div class="card-head" style="width:100%; position:relative;top:0; height:34px;cursor:move" id="popup_bar"> <span id="btn_close" style="float:right;cursor:pointer;padding-right:6px;">[X]</span>
+            <header id="exTitle">Items</header>
+          </div>
+          <div class="card-body " id="bar-parent2"></div>
+    		<div class="row">
+              <div class="col-md-6">
+                <div class="card card-topline-aqua">
+                  <div class="card-head">
+                    <!--<header>Items<small class="sub-heading">Search/Select</small></header>-->
+                    <div style="padding:0px 2px">
+                      <button  style="display:none" type="button" id="btn_popup" value="ppp"></button>
+                    </div>
+                  </div>
+                  <div class="card-body" id="myscrollx"  style="overflow-y: auto; min-height:320px; max-height:320px">
+                    <!--<span class="context-menu-one btn btn-neutral">right click me</span>-->
+                    <?php foreach($treeCats as $tree) : extract($tree); ?>
+                    <span class="accordion-item class<?=$id?>" onclick="getChilds(<?=$id?>)" data-panel-id="nesting-panel<?=$id?>">
+                    <button class="btn btn-success btn-sm" onclick="add('add',<?=$id?>)" ><i class="fa fa-certificate"></i></button>
+                    <?=str_pad($id,5,"0",STR_PAD_LEFT)?>
+                    ----<i class="fa fa-plus-circle"></i>
+                    <?=$title?>
+                    </span>
+                    <div class="accordion-panel" id="nesting-panel<?=$id?>"></div>
+                    <?php endforeach ?>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card card-topline-aqua">
+                  <div class="card-head">
+                    <header>Item Detailes</header>
+                    <input type="hidden" id="tempselect" name="tempselect" value="" />
+                    <button type="button" style="float:right" class="btn btn-xs btn-success" onclick="finalSelectItem()" >SELECT</button>
+                  </div>
+                  <div class="card-body" id="idetails"  style="overflow-y: auto; min-height:320px; max-height:320px"> </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card card-topline-aqua">
+                  <div class="card-head">
+                    <header>Search</header>
+                  </div>
+                  <div class="card-body" style="overflow-y: auto; min-height:320px; max-height:320px">
+                    <div class="row">
+                      <form action="" method="post" onsubmit="">
+                        <input type="text" class="form-control" name="searchcat" id="searchcat" placeholder="Search ...." onkeyup="getSearchedCats()" />
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt1" value="id"  onchange="getSearchedCats()" >
+                          <label for="searchopt1" style="padding-right:5px;">MIS# </label>
+                        </div>
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt6" value="item_name" onchange="getSearchedCats()" >
+                          <label for="searchopt6" style="padding-right:5px;">Name </label>
+                        </div>
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt2" value="item_serial_no"  onchange="getSearchedCats()" >
+                          <label for="searchopt2" style="padding-right:5px;">Serial </label>
+                        </div>
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt3" value="item_description"  onchange="getSearchedCats()" >
+                          <label for="searchopt3" style="padding-right:5px;">Desc </label>
+                        </div>
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt4" value="item_functionality"  onchange="getSearchedCats()" >
+                          <label for="searchopt4" style="padding-right:5px;">Funct </label>
+                        </div>
+                        <div class="radio" style="margin:3px; float:left">
+                          <input type="radio" name="searchopt" id="searchopt5" value="all" checked  onchange="getSearchedCats()" >
+                          <label for="searchopt5" style="padding-right:5px;">All </label>
+                        </div>
+                      </form>
+                    </div>
+                    <ul id="aik" style=" background-color:rgb(0 123 255 / 14%); margin-top:5px">
+                    </ul>
+                  </div>
+                </div>
+              </div>
+        	</div>
+        </div>
+      </div>
+    </div>
+</div>
+
+
+
+<?php $this->load->view('admin_layout/footer');?>
+<script type="text/javascript">
+function getSearchedCats(){
+	var tableName 	= '<?=$tableName?>';
+	var searchString = $("#searchcat").val();
+	var searchOption = $("input[name=searchopt]:checked").val();//$("#searchopt").val();
+	if(searchString.length>0){
+		//alert(searchOption+searchString);
+		$.post("<?php echo base_url(); ?>Function_control/searchForm",{searchString,searchOption}, 
+			function(data)
+			{   //alert(data);
+				$("#aik").html(data);
+			});
+	}
+}
+function searchMagic(x){ 
+	var tableName 	= '<?=$tableName?>';
+	var catid=x;
+	addEditItemStock(x);
+	$.post("<?php echo base_url(); ?>Function_control/trackCategory",{catid,tableName}, 
+			function(data)
+			{   //alert(data);
+				var arr = data.split(",");
+				myFunction(arr);
+			});
+}
+
+function myFunction(arr) {
+  var count = 1; 
+  var lastitem = arr[arr.length-1];
+  jQuery.each(arr, function(index, value) {
+    setTimeout(function() { 
+						$(".class"+value).click();
+						if(value==lastitem){
+						$(".class-"+value).css('background-color','#cfcfcf');
+						$(".class"+value).css('background-color','#cfcfcf');
+						$("#i"+value).css('background-color','#cfcfcf');
+								var myElement = document.getElementById('i'+value);
+									if(myElement==null)
+								myElement = document.getElementsByClassName("class"+value)[0];var myElement = document.getElementById('i'+value);
+									if(myElement==null)
+										myElement = document.getElementsByClassName("class"+value)[0];
+									var topPos = myElement.offsetTop;			
+									document.getElementById('myscrollx').scrollTop = topPos;
+						}
+						}, count * 350);
+    count++;  
+	
+  });
+}
+
+$(function() {
+        $.contextMenu({
+            selector: '.context-menu-one', 
+            items: {
+                "edit": {name: "Edit", icon: "edit"},
+                "delete": {name: "Delete", icon: "delete"}
+            }
+        });  
+});
+function getChilds(parentid){ 
+	var tableName 	= '<?=$tableName?>';
+	$.post("<?php echo base_url(); ?>Function_control/getChilds",{parentid,tableName}, 
+			function(data)
+			{   //alert(data);
+				$(".accordion-panel").css("background-color", "#fff")
+				$("#nesting-panel"+parentid).html(data);
+			});
+	
+}
+function getChildItems(parentid){ 
+	var tableName 	= '<?=$tableName?>';
+	$.post("<?php echo base_url(); ?>Function_control/getChildItems",{parentid,tableName}, 
+			function(data)
+			{   //alert(parentid);alert(data);
+				$(".accordion-panel").css("background-color", "#fff")
+				$("#nesting-panel-x"+parentid).html(data);
+				
+				
+			});
+	
+}
+function getChildItemX(parentid){ 
+	var tableName 	= '<?=$tableName?>';
+	$.post("<?php echo base_url(); ?>Function_control/getChildItemX",{parentid,tableName}, 
+			function(data)
+			{   //alert(parentid);alert(data);
+				$(".accordion-panel").css("background-color", "#fff")
+				$("#nesting-panel-"+parentid).html(data);
+				
+			});
+	
+}
+function getsingleFieldAjax(inputfield,targetfield,value,table){
+		//alert(inputfield+"  "+targetfield+"  "+value+"  "+table);
+		$.post("<?=base_url()?>Registration/getsingleFieldAjax",{targetfield,value,table}, 
+				function(data)
+				{   //alert(data);
+					$("#"+inputfield).html(data);
+				});
+	}
+	
+function deleteRecord(key,value,tableName)
+{	/**** nested / internal onclcik shoud not efect external *****/
+	if (!e) var e = window.event;
+    e.cancelBubble = true;
+    if (e.stopPropagation) e.stopPropagation();
+	/********/
+	if (confirm("Are you sure to delete?"))
+	{  
+		$.post("<?php echo base_url(); ?>Function_control/deleteRecord",{key,value,tableName}, 
+			function(data)
+			{   //alert(data);
+				$("#row"+value).hide();
+				$(".class-"+value).hide();// location.reload();
+				 $("#btn_close").trigger("click");
+					loadFilters();
+			});
+	}
+}
+function deletBomItem(key,value,tableName)
+{	
+	if (confirm("Are you sure to delete?"))
+	{  
+		$.post("<?php echo base_url(); ?>Function_control/deleteRecord",{key,value,tableName}, 
+			function(data)
+			{   //alert(data);
+				$("#row"+value).hide();
+			});
+	}
+}
+function addbom(action,val)
+{   var viewType 	= 'Bom';
+	var tableName 	= 'e_bom';
+	var key 		= 'id'; 
+	$("#exTitle").html(action+' BOM');
+	$.post("<?php echo base_url(); ?>Function_control/getFormsView",{viewType,action,tableName,key,val}, 
+		function(data)
+		{  	 
+			$("#bar-parent2").html(data); 
+			$("#btn_popup").trigger('click');
+		});
+}
+
+function submitBom(val,action)
+{   var tableName 	= 'e_mat';
+	var field		= 'approved_status';
+	var fieldval	= action;
+	if(confirm("Are you sure to prceed?")){
+		$.post("<?php echo base_url(); ?>Function_control/submitCase",{tableName, val,field,fieldval}, 
+		function(data)
+		{  	
+			window.location.href = "<?=base_url()?>Home/mat";
+		});
+	}
+}
+
+function addEditItemStock(itemID){
+	$("#idetails").html(""); 
+	$("#tempselect").val("");
+	$.post("<?php echo base_url(); ?>Function_control/getItemDetail",{itemID}, 
+		function(data)
+		{  	if(data!="")
+			$("#tempselect").val(itemID);
+			$("#idetails").html(data); 
+		});
+}
+
+function addEditItemAlloc(action,pono,itemID,instrument){
+	var viewType 	= 'ItemAllocation';
+	var tableName 	= 'e_items_alloc';
+	var key 		= 'id'; 
+	var val 		= itemID;
+	$("#exTitle").html(action+' <?=$calledName?>');
+	$.post("<?php echo base_url(); ?>Function_control/getFormsView",{viewType,action,tableName,key,val,pono,instrument}, 
+		function(data)
+		{  	$("#bar-parent2").html(data); 
+			$("#btn_popup").trigger('click');
+		});
+}
+
+function idetailsToolTip(itemID){ 
+	$.post("<?php echo base_url(); ?>Function_control/getItemDetail",{itemID}, 
+		function(data)
+		{  	$('#ixd').html(data); 
+			$('#ixd').show(); 
+		});
+}
+function clearToolTip(itemID){ 
+	$('#ixd').html("");
+	$('#ixd').hide(); 
+}
+
+function searchSelectItem(){
+	$("#btn_popup").trigger('click');
+}
+function finalSelectItem(){
+	
+	$("#btn_close").trigger('click');
+	if($("#tempselect").val()>0){
+		var itemID=$("#tempselect").val();
+		$("#item_id").val($("#tempselect").val());
+		$.post("<?php echo base_url(); ?>Function_control/getItemName",{itemID}, 
+			function(data)
+			{  	$("#itm_display").html(data);
+		});
+		$.post("<?php echo base_url(); ?>Function_control/getAvailQty",{itemID}, 
+			function(data)
+			{  	 // $("#qty_needed").attr("max", data);
+		});
+	}
+	
+}
+
+function getItemValue(){
+	if((($("#usd_unit_price").val())*($("#item_quantity").val())))
+	$("#item_value").val( (($("#usd_unit_price").val())*($("#item_quantity").val())) );
+}
+
+function form_validation() 
+{   var xcount =0;
+    //if else validation here	
+	if($("#itm_display").html()=='Select Item'){xcount=1; alert('select item please');}
+	if(xcount==0){
+		var form = new FormData($('#myForm')[0]);
+		//alert(form.get('title'));
+    $.ajax({
+      type: "POST",
+      url: '<?php echo base_url(); ?>Function_control/crudSimple',
+      data: form,
+      cache: false,
+      contentType: false,
+      processData: false,
+      success: function(res){ 
+	  	//alert(res);
+      	//$("#btn_close").trigger("click");
+		location.reload();
+	  	
+      }
+      });
+   }
+      return false;
+}  
+ 
+ function form_alloc_validation() 
+{   var xcount =0;
+    //if else validation here	
+	
+	if(xcount==0){
+		var form = new FormData($('#allocForm')[0]);
+		//alert(form.get('title'));
+    $.ajax({
+      type: "POST",
+      url: '<?php echo base_url(); ?>Function_control/crudSimple',
+      data: form,
+      cache: false,
+      contentType: false,
+      processData: false,
+      success: function(res){ 
+	  	//alert(res);
+      	//$("#btn_close").trigger("click");
+		location.reload();
+	  	
+      }
+      });
+   }
+      return false;
+}
+
+function updateitem(id,tableName,itemID)
+{   var itemid 	= id;
+		$.post("<?php echo base_url(); ?>Function_control/updateSelectedItem",{tableName,id}, 
+		function(data)
+		{  	 
+			var obj = JSON.parse( data ); 
+			$("#qty_needed").val(obj.qty_needed);
+			$("#assembly_id").val(obj.assembly_id);
+			$("#sub_assembly_id").val(obj.sub_assembly_id);
+			$("#item_notes").val(obj.item_notes);
+			$("#item_id").val(obj.item_id);
+			$("#id").val(obj.id);
+			$("#action").val('edit');
+			$("#itm_display").html(obj.item_id+" - "+obj.ititle);
+		});
+		$.post("<?php echo base_url(); ?>Function_control/getAvailQty",{itemID}, 
+			function(data)
+			{  	  //$("#qty_needed").attr("max", data);
+		});
+		
+}
+
+
+function applyMPF(matid){
+	var val = $("#mpf").val();
+	$.post("<?php echo base_url(); ?>Function_control/applyMPF",{matid,val}, 
+		function(data)
+		{  	 //alert(data);
+			location.reload();
+		});
+	
+}
+</script>
