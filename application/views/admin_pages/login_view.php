@@ -50,7 +50,7 @@
                     <?php echo show_flash_data();  ?>&nbsp;
                     </div>
 					<div class="text-left" style="float:left">
-					<a class="btn btn-danger btn-xs" href="<?=base_url()?>signup"><i class="fa fa-user "></i> Signup </a>
+					<a class="btn btn-danger btn-xs" href="<?=base_url()?>signup"><i class="fa fa-user "></i> Signup test </a>
                     </div>
                     <div class="text-right">
                     <a class="btn btn-primary btn-xs" href="<?=base_url()?>forgot"><i class="fa fa-user "></i> Forgot Password?</a>
